@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro</title>
+<style>
+  :root {
+    --bg: #f6f4f0;
+    --card: #ffffff;
+    --text: #2a2723;
+    --muted: #8a8378;
+    --border: #e5e1d8;
+    --accent: #d95550;        /* focus */
+    --accent-soft: #f8e4e3;
+    --ring-track: #eeeae2;
+    --shadow: 0 10px 30px rgba(42, 39, 35, 0.08);
+  }
+  [data-mode="short"] {
+    --accent: #4c9195;
+    --accent-soft: #e0eeef;
+  }
+  [data-mode="long"] {
+    --accent: #457ca3;
+    --accent-soft: #e0ebf3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a17;
+      --card: #262320;
+      --text: #ece8e1;
+      --muted: #9a9287;
+      --border: #38342e;
+      --accent-soft: #3a2725;
+      --ring-track: #33302a;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    [data-mode="short"] { --accent-soft: #223436; }
+    [data-mode="long"]  { --accent-soft: #22303c; }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    transition: background 0.4s;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 32px 36px 28px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+
+  .tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 4px;
+    margin-bottom: 26px;
+  }
+  .tabs button {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .tabs button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .dial {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin: 0 auto 24px;
+  }
+  .dial svg { transform: rotate(-90deg); }
+  .dial circle {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+  }
+  .dial .track { stroke: var(--ring-track); }
+  .dial .progress {
+    stroke: var(--accent);
+    transition: stroke-dashoffset 0.5s linear, stroke 0.4s;
+  }
+  .dial .readout {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  #time {
+    font-size: 3.4rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+  }
+  #cycle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  #startBtn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 14px 44px;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+    transition: background 0.3s, transform 0.1s, box-shadow 0.1s;
+  }
+  #startBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+  .icon-btn {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .footer button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .footer button:hover { color: var(--text); }
+
+  dialog {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--card);
+    color: var(--text);
+    padding: 26px 28px;
+    width: min(92vw, 360px);
+    box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.35); }
+  dialog h2 { font-size: 1.05rem; margin-bottom: 18px; }
+  .setting {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+  }
+  .setting input[type="number"] {
+    width: 70px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    text-align: right;
+  }
+  .setting input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .dialog-actions button {
+    border: none;
+    border-radius: 10px;
+    padding: 9px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .dialog-actions .save { background: var(--accent); color: #fff; }
+  .dialog-actions .cancel { background: var(--bg); color: var(--muted); }
+
+  .hint { margin-top: 14px; color: var(--muted); font-size: 0.72rem; }
+  kbd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: inherit;
+    font-size: 0.72rem;
+  }
+</style>
+</head>
+<body data-mode="focus">
+
+<main class="card">
+  <nav class="tabs" aria-label="Timer mode">
+    <button data-mode="focus" class="active">Focus</button>
+    <button data-mode="short">Short Break</button>
+    <button data-mode="long">Long Break</button>
+  </nav>
+
+  <div class="dial">
+    <svg width="260" height="260" viewBox="0 0 260 260" aria-hidden="true">
+      <circle class="track" cx="130" cy="130" r="118"></circle>
+      <circle class="progress" cx="130" cy="130" r="118"></circle>
+    </svg>
+    <div class="readout">
+      <div id="time" role="timer" aria-live="polite">25:00</div>
+      <div id="cycle">Pomodoro #1</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="soundBtn" class="icon-btn" title="Toggle sound">&#128266;</button>
+    <button id="startBtn">Start</button>
+    <button id="resetBtn" class="icon-btn" title="Reset timer">&#8634;</button>
+  </div>
+
+  <div class="footer">
+    <span id="stats">0 completed today</span>
+    <button id="settingsBtn">Settings</button>
+  </div>
+
+  <p class="hint"><kbd>Space</kbd> start / pause &nbsp;&middot;&nbsp; <kbd>R</kbd> reset &nbsp;&middot;&nbsp; <kbd>S</kbd> skip</p>
+</main>
+
+<dialog id="settingsDialog">
+  <h2>Settings</h2>
+  <form method="dialog">
+    <label class="setting">Focus (minutes) <input type="number" id="setFocus" min="1" max="120"></label>
+    <label class="setting">Short break (minutes) <input type="number" id="setShort" min="1" max="60"></label>
+    <label class="setting">Long break (minutes) <input type="number" id="setLong" min="1" max="60"></label>
+    <label class="setting">Long break every (pomodoros) <input type="number" id="setInterval" min="1" max="12"></label>
+    <label class="setting">Auto-start next timer <input type="checkbox" id="setAuto"></label>
+    <label class="setting">Desktop notifications <input type="checkbox" id="setNotify"></label>
+    <div class="dialog-actions">
+      <button class="cancel" value="cancel" formnovalidate>Cancel</button>
+      <button class="save" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  "use strict";
+
+  const DEFAULTS = {
+    focus: 25,
+    short: 5,
+    long: 15,
+    interval: 4,       // long break after this many pomodoros
+    autoStart: false,
+    notify: false,
+    sound: true,
+  };
+
+  const STORAGE_KEY = "pomodoro-web";
+
+  const state = {
+    settings: loadSettings(),
+    mode: "focus",               // focus | short | long
+    remaining: 0,                // seconds
+    total: 0,                    // seconds for current mode
+    running: false,
+    tickHandle: null,
+    endAt: null,                 // wall-clock ms deadline (survives tab throttling)
+    completedFocus: 0,           // pomodoros finished this session/day
+  };
+
+  // --- elements ---
+  const $ = (sel) => document.querySelector(sel);
+  const timeEl = $("#time");
+  const cycleEl = $("#cycle");
+  const statsEl = $("#stats");
+  const startBtn = $("#startBtn");
+  const resetBtn = $("#resetBtn");
+  const soundBtn = $("#soundBtn");
+  const settingsBtn = $("#settingsBtn");
+  const dialog = $("#settingsDialog");
+  const progressCircle = document.querySelector(".dial .progress");
+  const tabs = [...document.querySelectorAll(".tabs button")];
+
+  const CIRCUMFERENCE = 2 * Math.PI * 118;
+  progressCircle.style.strokeDasharray = CIRCUMFERENCE;
+
+  // --- persistence ---
+  function loadSettings() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      return { ...DEFAULTS, ...raw.settings };
+    } catch {
+      return { ...DEFAULTS };
+    }
+  }
+
+  function loadDayStats() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      const today = new Date().toISOString().slice(0, 10);
+      return raw.day === today ? raw.completed || 0 : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function persist() {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      settings: state.settings,
+      day: today,
+      completed: state.completedFocus,
+    }));
+  }
+
+  // --- audio chime (WebAudio, no assets) ---
+  let audioCtx = null;
+  function chime() {
+    if (!state.settings.sound) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      [880, 1108.73, 1318.51].forEach((freq, i) => {   // A5, C#6, E6 — major arpeggio
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, now + i * 0.18);
+        gain.gain.exponentialRampToValueAtTime(0.25, now + i * 0.18 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.18 + 0.6);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + i * 0.18);
+        osc.stop(now + i * 0.18 + 0.65);
+      });
+    } catch { /* audio unavailable — ignore */ }
+  }
+
+  // --- notifications ---
+  function notifyDone(message) {
+    if (!state.settings.notify || !("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification("Pomodoro", { body: message });
+    }
+  }
+
+  // --- core timer ---
+  function minutesFor(mode) {
+    return mode === "focus" ? state.settings.focus
+         : mode === "short" ? state.settings.short
+         : state.settings.long;
+  }
+
+  function setMode(mode, { autoRun = false } = {}) {
+    stopTicking();
+    state.mode = mode;
+    state.total = minutesFor(mode) * 60;
+    state.remaining = state.total;
+    state.running = false;
+    document.body.dataset.mode = mode;
+    tabs.forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+    render();
+    if (autoRun) start();
+  }
+
+  function start() {
+    if (state.running) return;
+    state.running = true;
+    state.endAt = Date.now() + state.remaining * 1000;
+    state.tickHandle = setInterval(tick, 250);
+    render();
+  }
+
+  function pause() {
+    if (!state.running) return;
+    state.remaining = Math.max(0, Math.round((state.endAt - Date.now()) / 1000));
+    stopTicking();
+    render();
+  }
+
+  function stopTicking() {
+    clearInterval(state.tickHandle);
+    state.tickHandle = null;
+    state.running = false;
+  }
+
+  function reset() {
+    stopTicking();
+    state.remaining = state.total;
+    render();
+  }
+
+  function tick() {
+    const left = Math.max(0, Math.round((state.endAt - Date.now()) / 1000));
+    if (left !== state.remaining) {
+      state.remaining = left;
+      render();
+    }
+    if (left <= 0) finish();
+  }
+
+  function finish() {
+    stopTicking();
+    chime();
+
+    if (state.mode === "focus") {
+      state.completedFocus++;
+      persist();
+      const isLong = state.completedFocus % state.settings.interval === 0;
+      notifyDone(isLong ? "Focus done — take a long break." : "Focus done — take a short break.");
+      setMode(isLong ? "long" : "short", { autoRun: state.settings.autoStart });
+    } else {
+      notifyDone("Break over — back to focus.");
+      setMode("focus", { autoRun: state.settings.autoStart });
+    }
+  }
+
+  function skip() {
+    state.endAt = Date.now();
+    state.remaining = 0;
+    finish();
+  }
+
+  // --- render ---
+  function render() {
+    const m = String(Math.floor(state.remaining / 60)).padStart(2, "0");
+    const s = String(state.remaining % 60).padStart(2, "0");
+    timeEl.textContent = `${m}:${s}`;
+
+    const modeLabel = state.mode === "focus" ? "Focus" : state.mode === "short" ? "Short break" : "Long break";
+    document.title = state.running || state.remaining < state.total
+      ? `${m}:${s} — ${modeLabel}`
+      : "Pomodoro";
+
+    cycleEl.textContent = state.mode === "focus"
+      ? `Pomodoro #${state.completedFocus + 1}`
+      : modeLabel;
+
+    const done = state.total ? 1 - state.remaining / state.total : 0;
+    progressCircle.style.strokeDashoffset = CIRCUMFERENCE * done;
+
+    startBtn.textContent = state.running ? "Pause" : "Start";
+    statsEl.textContent = `${state.completedFocus} completed today`;
+    soundBtn.style.opacity = state.settings.sound ? 1 : 0.4;
+  }
+
+  // --- settings dialog ---
+  function openSettings() {
+    $("#setFocus").value = state.settings.focus;
+    $("#setShort").value = state.settings.short;
+    $("#setLong").value = state.settings.long;
+    $("#setInterval").value = state.settings.interval;
+    $("#setAuto").checked = state.settings.autoStart;
+    $("#setNotify").checked = state.settings.notify;
+    dialog.showModal();
+  }
+
+  dialog.addEventListener("close", () => {
+    if (dialog.returnValue !== "save") return;
+    const clamp = (v, lo, hi, fallback) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
+    };
+    state.settings.focus = clamp($("#setFocus").value, 1, 120, DEFAULTS.focus);
+    state.settings.short = clamp($("#setShort").value, 1, 60, DEFAULTS.short);
+    state.settings.long = clamp($("#setLong").value, 1, 60, DEFAULTS.long);
+    state.settings.interval = clamp($("#setInterval").value, 1, 12, DEFAULTS.interval);
+    state.settings.autoStart = $("#setAuto").checked;
+    state.settings.notify = $("#setNotify").checked;
+    persist();
+    if (state.settings.notify && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    // Apply new duration to the current (idle) timer; keep a running one untouched.
+    if (!state.running && state.remaining === state.total) {
+      setMode(state.mode);
+    } else {
+      render();
+    }
+  });
+
+  // --- events ---
+  startBtn.addEventListener("click", () => (state.running ? pause() : start()));
+  resetBtn.addEventListener("click", reset);
+  settingsBtn.addEventListener("click", openSettings);
+  soundBtn.addEventListener("click", () => {
+    state.settings.sound = !state.settings.sound;
+    persist();
+    render();
+  });
+  tabs.forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+
+  document.addEventListener("keydown", (e) => {
+    if (dialog.open || e.target.tagName === "INPUT") return;
+    if (e.code === "Space") { e.preventDefault(); state.running ? pause() : start(); }
+    else if (e.key === "r" || e.key === "R") reset();
+    else if (e.key === "s" || e.key === "S") skip();
+  });
+
+  // Catch up instantly when the tab regains focus (intervals get throttled in background tabs).
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.running) tick();
+  });
+
+  // --- init ---
+  state.completedFocus = loadDayStats();
+  setMode("focus");
+})();
+</script>
+</body>
+</html>
