@@ -10,3 +10,4 @@ A zero-dependency, single-file pomodoro timer. No build step, no external assets
 - **Accurate in background tabs** — the countdown is anchored to a wall-clock deadline, not interval ticks, so tab throttling can't drift it.
 - **Keyboard shortcuts**: `Space` start/pause, `R` reset, `S` skip to the next phase.
 - Light/dark theme follows the OS preference; the accent color shifts per mode (red focus, teal short break, blue long break).
+- Ambient background: two blurred color fields drift slowly behind a frosted-glass card and re-tint with the active mode, plus a faint SVG grain texture. Pure CSS, honors `prefers-reduced-motion`.

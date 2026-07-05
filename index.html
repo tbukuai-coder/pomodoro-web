@@ -7,31 +7,38 @@
 <style>
   :root {
     --bg: #f6f4f0;
-    --card: #ffffff;
+    --card: rgba(255, 255, 255, 0.78);
     --text: #2a2723;
     --muted: #8a8378;
     --border: #e5e1d8;
     --accent: #d95550;        /* focus */
     --accent-soft: #f8e4e3;
+    --blob2: #e6a23c;         /* companion background hue per mode */
+    --blob-alpha: 0.30;
+    --grain-alpha: 0.05;
     --ring-track: #eeeae2;
     --shadow: 0 10px 30px rgba(42, 39, 35, 0.08);
   }
   [data-mode="short"] {
     --accent: #4c9195;
     --accent-soft: #e0eeef;
+    --blob2: #7fb069;
   }
   [data-mode="long"] {
     --accent: #457ca3;
     --accent-soft: #e0ebf3;
+    --blob2: #8a7cc9;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #1c1a17;
-      --card: #262320;
+      --card: rgba(38, 35, 32, 0.78);
       --text: #ece8e1;
       --muted: #9a9287;
       --border: #38342e;
       --accent-soft: #3a2725;
+      --blob-alpha: 0.20;
+      --grain-alpha: 0.07;
       --ring-track: #33302a;
       --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
@@ -53,8 +60,63 @@
     transition: background 0.4s;
   }
 
+  /* Ambient background: two blurred color fields that drift slowly and
+     re-tint with the active mode (background-color transitions, gradients don't). */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    z-index: -2;
+    border-radius: 50%;
+    filter: blur(110px);
+    opacity: var(--blob-alpha);
+    pointer-events: none;
+    transition: background-color 1.5s ease;
+  }
+  body::before {
+    width: 55vmax;
+    height: 55vmax;
+    top: -20vmax;
+    left: -15vmax;
+    background-color: var(--accent);
+    animation: drift-a 26s ease-in-out infinite alternate;
+  }
+  body::after {
+    width: 48vmax;
+    height: 48vmax;
+    bottom: -18vmax;
+    right: -14vmax;
+    background-color: var(--blob2);
+    animation: drift-b 34s ease-in-out infinite alternate;
+  }
+  @keyframes drift-a {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(7vmax, 5vmax) scale(1.15); }
+  }
+  @keyframes drift-b {
+    from { transform: translate(0, 0) scale(1.1); }
+    to   { transform: translate(-6vmax, -7vmax) scale(0.9); }
+  }
+
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--grain-alpha);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before,
+    body::after { animation: none; }
+  }
+
   .card {
     background: var(--card);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 1px solid var(--border);
     border-radius: 24px;
     box-shadow: var(--shadow);
@@ -184,6 +246,8 @@
     border: 1px solid var(--border);
     border-radius: 18px;
     background: var(--card);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     color: var(--text);
     padding: 26px 28px;
     width: min(92vw, 360px);
@@ -234,6 +298,8 @@
 </style>
 </head>
 <body data-mode="focus">
+
+<div class="grain" aria-hidden="true"></div>
 
 <main class="card">
   <nav class="tabs" aria-label="Timer mode">
